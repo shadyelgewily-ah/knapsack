@@ -3,12 +3,22 @@ use std::fmt;
 pub struct KnapsackSolution {
     pub obj: usize,
     pub opt: bool,
+    pub selected_items: Vec<u8>,
 }
 
 impl fmt::Display for KnapsackSolution {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {}", self.obj, self.opt as u8);
-        Ok(())
+        write!(
+            f,
+            "{} {}\n{}",
+            self.obj,
+            self.opt as u8,
+            self.selected_items
+                .iter()
+                .map(|n| n.to_string())
+                .collect::<Vec<_>>()
+                .join(" ")
+        )
     }
 }
 

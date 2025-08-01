@@ -41,12 +41,14 @@ impl fmt::Display for Matrix {
 }
 
 pub fn dynamic_programming_strategy(problem: KnapsackProblem) -> KnapsackSolution {
-    if (problem.n_items > 100) | (problem.capacity > 100) {
-        panic!("Only choose dynamic programming when n_items * capacity is reasonably small");
+    if (problem.n_items * problem.capacity > 1_000_000) {
+        panic!(
+            "Only choose dynamic programming when n_items * capacity is reasonably small to avoid large memory footprint and slow runtime"
+        );
     }
 
     let mut value_matrix: Matrix = Matrix::new(problem.capacity + 1, problem.n_items + 1, 0);
-
+    let mut selected_items: Vec<u8> = vec![0; problem.n_items];
     for cur_item_no in 1..=problem.n_items {
         for cur_capacity in 1..=problem.capacity {
             let cur_item: &KnapsackItem = problem
@@ -57,6 +59,12 @@ pub fn dynamic_programming_strategy(problem: KnapsackProblem) -> KnapsackSolutio
                 let best_value_without_item = value_matrix.get(cur_capacity, cur_item_no - 1);
                 let best_value_with_item = cur_item.value
                     + value_matrix.get(cur_capacity - cur_item.weight, cur_item_no - 1);
+
+                // TODO: FIX THIS, when is an item actually selected in the final solution?
+                if best_value_with_item > best_value_without_item {
+                    selected_items[cur_item_no - 1] = 1_u8;
+                }
+
                 value_matrix.set(
                     cur_capacity,
                     cur_item_no,
@@ -77,8 +85,10 @@ pub fn dynamic_programming_strategy(problem: KnapsackProblem) -> KnapsackSolutio
     }
 
     //Dynamic programming always finds the optimal solution
+    // TODO: Determine which items were selected
     KnapsackSolution {
         obj: *value_matrix.data.last().unwrap(),
         opt: true,
+        selected_items,
     }
 }
