@@ -49,9 +49,5 @@ pub fn parse_input_file(filename: String) -> KnapsackProblem {
         treasure_items.push(KnapsackItem { value, weight });
     }
 
-    KnapsackProblem {
-        n_items,
-        capacity,
-        treasure_items,
-    }
+    KnapsackProblem::new(n_items, capacity, treasure_items)
 }
