@@ -1,15 +1,16 @@
+use crate::knapsack::{KnapsackItem, KnapsackProblem};
+use std::cmp::max;
 use std::fmt;
-use crate::knapsack::KnapsackProblem;
 
 #[derive(Debug)]
 struct Matrix {
-    data: Vec<i32>,
+    data: Vec<usize>,
     rows: usize,
     cols: usize,
 }
 
 impl Matrix {
-    fn new(rows: usize, cols: usize, val: i32) -> Self {
+    fn new(rows: usize, cols: usize, val: usize) -> Self {
         Self {
             data: vec![val; rows * cols],
             rows,
@@ -17,12 +18,12 @@ impl Matrix {
         }
     }
 
-    fn set(&mut self, row: usize, col: usize, val: i32) {
+    fn set(&mut self, row: usize, col: usize, val: usize) {
         assert!(row < self.rows && col < self.cols, "Index out of bounds");
         self.data[row * self.cols + col] = val;
     }
 
-    fn get(&self, row: usize, col: usize) -> i32 {
+    fn get(&self, row: usize, col: usize) -> usize {
         self.data[row * self.cols + col]
     }
 }
@@ -44,10 +45,32 @@ pub fn dynamic_programming_strategy(problem: KnapsackProblem) {
         panic!("Only choose dynamic programming when n_items * capacity is reasonably small");
     }
 
-    let mut value_matrix: Matrix = Matrix::new(
-        (problem.capacity + 1) as usize,
-        (problem.n_items + 1) as usize,
-        0,
-    );
+    let mut value_matrix: Matrix = Matrix::new(problem.capacity + 1, problem.n_items + 1, 0);
+
+    for cur_item_no in 1..=problem.n_items {
+        for cur_capacity in 1..=problem.capacity {
+            let cur_item: &KnapsackItem = problem
+                .treasure_items
+                .get(cur_item_no-1)
+                .expect("Could not load KnapsackItem from KnapsackProblem");
+            if cur_item.weight <= cur_capacity {
+                let best_value_without_item = value_matrix.get(cur_capacity, cur_item_no - 1);
+                let best_value_with_item = cur_item.value
+                    + value_matrix.get(cur_capacity - cur_item.weight, cur_item_no - 1);
+                value_matrix.set(
+                    cur_capacity,
+                    cur_item_no,
+                    max(best_value_with_item, best_value_without_item),
+                );
+            } else {
+                value_matrix.set(
+                    cur_capacity,
+                    cur_item_no,
+                    value_matrix.get(cur_capacity, cur_item_no - 1),
+                )
+            }
+        }
+    }
+
     println!("{}", value_matrix);
 }

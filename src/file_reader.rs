@@ -19,12 +19,12 @@ pub fn parse_input_file(filename: String) -> KnapsackProblem {
         .expect("Failed to read first line");
     let mut header_parts = header.split(" ");
 
-    let n_items: u16 = header_parts
+    let n_items: usize = header_parts
         .next()
         .expect("Missing number of items")
         .parse()
         .expect("Misformatted number of items");
-    let capacity: u16 = header_parts
+    let capacity: usize = header_parts
         .next()
         .expect("Missing knapsack capacity")
         .parse()
@@ -35,12 +35,12 @@ pub fn parse_input_file(filename: String) -> KnapsackProblem {
         let line = line.expect("Invalid line");
         let mut line_parts = line.split(" ");
 
-        let value: u16 = line_parts
+        let value: usize = line_parts
             .next()
             .expect("Missing value")
             .parse()
             .expect("Invalid value");
-        let weight: u16 = line_parts
+        let weight: usize = line_parts
             .next()
             .expect("Missing weight")
             .parse()
