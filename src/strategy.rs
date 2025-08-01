@@ -1,4 +1,4 @@
-use crate::knapsack::{KnapsackItem, KnapsackProblem};
+use crate::knapsack::{KnapsackItem, KnapsackProblem, KnapsackSolution};
 use std::cmp::max;
 use std::fmt;
 
@@ -40,7 +40,7 @@ impl fmt::Display for Matrix {
     }
 }
 
-pub fn dynamic_programming_strategy(problem: KnapsackProblem) {
+pub fn dynamic_programming_strategy(problem: KnapsackProblem, debug: bool) -> KnapsackSolution {
     if (problem.n_items > 100) | (problem.capacity > 100) {
         panic!("Only choose dynamic programming when n_items * capacity is reasonably small");
     }
@@ -51,7 +51,7 @@ pub fn dynamic_programming_strategy(problem: KnapsackProblem) {
         for cur_capacity in 1..=problem.capacity {
             let cur_item: &KnapsackItem = problem
                 .treasure_items
-                .get(cur_item_no-1)
+                .get(cur_item_no - 1)
                 .expect("Could not load KnapsackItem from KnapsackProblem");
             if cur_item.weight <= cur_capacity {
                 let best_value_without_item = value_matrix.get(cur_capacity, cur_item_no - 1);
@@ -72,5 +72,13 @@ pub fn dynamic_programming_strategy(problem: KnapsackProblem) {
         }
     }
 
-    println!("{}", value_matrix);
+    if debug {
+        println!("{}", value_matrix);
+    }
+
+    //Dynamic programming always finds the optimal solution
+    KnapsackSolution {
+        obj: *value_matrix.data.last().unwrap(),
+        opt: true,
+    }
 }

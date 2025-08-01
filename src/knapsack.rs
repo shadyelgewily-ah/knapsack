@@ -1,3 +1,17 @@
+use std::fmt;
+
+pub struct KnapsackSolution {
+    pub obj: usize,
+    pub opt: bool,
+}
+
+impl fmt::Display for KnapsackSolution {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} {}", self.obj, self.opt as u8);
+        Ok(())
+    }
+}
+
 #[derive(Debug)]
 pub struct KnapsackProblem {
     pub n_items: usize,
@@ -6,7 +20,11 @@ pub struct KnapsackProblem {
 }
 
 impl KnapsackProblem {
-    pub fn new(n_items: usize, capacity: usize, treasure_items: Vec<KnapsackItem>) -> KnapsackProblem {
+    pub fn new(
+        n_items: usize,
+        capacity: usize,
+        treasure_items: Vec<KnapsackItem>,
+    ) -> KnapsackProblem {
         assert_eq!(
             treasure_items.len(),
             n_items,
