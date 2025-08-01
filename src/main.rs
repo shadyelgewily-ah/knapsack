@@ -13,6 +13,6 @@ fn main() {
     };
     let knapsack_problem: KnapsackProblem = file_reader::parse_input_file(filename);
 
-    let soln: KnapsackSolution = dynamic_programming_strategy(knapsack_problem, true);
+    let soln: KnapsackSolution = dynamic_programming_strategy(knapsack_problem);
     println!("{}", soln);
 }

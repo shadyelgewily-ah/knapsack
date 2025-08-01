@@ -40,7 +40,7 @@ impl fmt::Display for Matrix {
     }
 }
 
-pub fn dynamic_programming_strategy(problem: KnapsackProblem, debug: bool) -> KnapsackSolution {
+pub fn dynamic_programming_strategy(problem: KnapsackProblem) -> KnapsackSolution {
     if (problem.n_items > 100) | (problem.capacity > 100) {
         panic!("Only choose dynamic programming when n_items * capacity is reasonably small");
     }
@@ -72,7 +72,7 @@ pub fn dynamic_programming_strategy(problem: KnapsackProblem, debug: bool) -> Kn
         }
     }
 
-    if debug {
+    if cfg!(debug_assertions) {
         println!("{}", value_matrix);
     }
 
