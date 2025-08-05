@@ -45,9 +45,12 @@ pub struct DynamicProgrammingSolver;
 
 impl KnapsackSolver for DynamicProgrammingSolver {
     fn solve(problem: &KnapsackProblem) -> KnapsackSolution {
-        if (problem.n_items * problem.capacity > 1_000_000) {
+        let problem_size = problem.n_items * problem.capacity;
+
+        //Maximum 8GB of RAM on 64 bit
+        if problem_size > 1_000_000_000 {
             panic!(
-                "Only choose dynamic programming when n_items * capacity is reasonably small to avoid large memory footprint and slow runtime"
+                "Problem size {} ({} x {}) is too large  for dynamic programming", problem_size, problem.n_items, problem.capacity
             );
         }
 
@@ -109,7 +112,7 @@ impl DynamicProgrammingSolver {
             if cfg!(debug_assertions) {
                 println!("Backtracking step: {}, {}, {} vs {}", cur_col, cur_row, new_val, cur_val);
             }
-            if (new_val < cur_val) {
+            if new_val < cur_val {
                 selected_items[cur_col - 1] = 1;
                 cur_row -= weights[cur_col - 1];
                 cur_val = value_matrix.get(cur_row, cur_col - 1);
