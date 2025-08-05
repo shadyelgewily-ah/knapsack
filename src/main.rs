@@ -1,10 +1,12 @@
 mod file_reader;
 mod knapsack;
 mod dynamic_programming;
+mod knapsack_solver;
 
 use knapsack::{KnapsackProblem};
 use crate::knapsack::KnapsackSolution;
-use crate::dynamic_programming::{DynamicProgrammingStrategy};
+use crate::dynamic_programming::{DynamicProgrammingSolver};
+use crate::knapsack_solver::KnapsackSolver;
 
 fn main() {
     let filename = match file_reader::parse_args() {
@@ -13,6 +15,6 @@ fn main() {
     };
     let knapsack_problem: KnapsackProblem = file_reader::parse_input_file(filename);
 
-    let soln: KnapsackSolution = DynamicProgrammingStrategy::solve(&knapsack_problem);
+    let soln: KnapsackSolution = DynamicProgrammingSolver::solve(&knapsack_problem);
     println!("{}", soln);
 }

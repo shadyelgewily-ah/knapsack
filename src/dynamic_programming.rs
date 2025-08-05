@@ -1,4 +1,5 @@
 use crate::knapsack::{KnapsackItem, KnapsackProblem, KnapsackSolution};
+use crate::knapsack_solver::KnapsackSolver;
 use std::cmp::max;
 use std::fmt;
 
@@ -40,10 +41,10 @@ impl fmt::Display for Matrix {
     }
 }
 
-pub struct DynamicProgrammingStrategy;
+pub struct DynamicProgrammingSolver;
 
-impl DynamicProgrammingStrategy {
-    pub fn solve(problem: &KnapsackProblem) -> KnapsackSolution {
+impl KnapsackSolver for DynamicProgrammingSolver {
+    fn solve(problem: &KnapsackProblem) -> KnapsackSolution {
         if (problem.n_items * problem.capacity > 1_000_000) {
             panic!(
                 "Only choose dynamic programming when n_items * capacity is reasonably small to avoid large memory footprint and slow runtime"
@@ -64,7 +65,8 @@ impl DynamicProgrammingStrategy {
             selected_items,
         }
     }
-
+}
+impl DynamicProgrammingSolver {
     fn fill_value_matrix(problem: &KnapsackProblem) -> Matrix {
         let mut value_matrix: Matrix = Matrix::new(problem.capacity + 1, problem.n_items + 1, 0);
         for cur_item_no in 1..=problem.n_items {
