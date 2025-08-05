@@ -46,6 +46,10 @@ impl KnapsackProblem {
             treasure_items,
         }
     }
+
+    pub fn get_weights(&self) -> Vec<usize> {
+        self.treasure_items.iter().map(|item| item.weight).collect()
+    }
 }
 #[derive(Debug)]
 pub struct KnapsackItem {

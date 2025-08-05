@@ -52,14 +52,15 @@ impl KnapsackSolver for DynamicProgrammingSolver {
         }
 
         let value_matrix = Self::fill_value_matrix(&problem);
+        let obj_value = *value_matrix.data.last().unwrap();
         if cfg!(debug_assertions) {
             println!("{}", value_matrix);
         }
         // TODO: Determine which items were selected
-        let selected_items = vec![];
+        let selected_items = Self::find_selected_items(&value_matrix, &problem.get_weights());
 
         KnapsackSolution {
-            obj: *value_matrix.data.last().unwrap(),
+            obj: obj_value,
             //Dynamic programming always finds the optimal solution
             opt: true,
             selected_items,
@@ -94,5 +95,27 @@ impl DynamicProgrammingSolver {
             }
         }
         value_matrix
+    }
+
+    fn find_selected_items(value_matrix: &Matrix, weights: &Vec<usize>) -> Vec<u8> {
+        let mut selected_items: Vec<u8> = vec![0; value_matrix.cols - 1];
+        //objective value:
+        let mut cur_val = value_matrix.get(value_matrix.rows - 1, value_matrix.cols - 1);
+
+        //backtrack to find the selected items
+        let mut cur_row = value_matrix.rows - 1;
+        for cur_col in (1..value_matrix.cols).rev() {
+            let new_val = value_matrix.get(cur_row, cur_col - 1);
+            if cfg!(debug_assertions) {
+                println!("Backtracking step: {}, {}, {} vs {}", cur_col, cur_row, new_val, cur_val);
+            }
+            if (new_val < cur_val) {
+                selected_items[cur_col - 1] = 1;
+                cur_row -= weights[cur_col - 1];
+                cur_val = value_matrix.get(cur_row, cur_col - 1);
+            }
+        }
+
+        selected_items
     }
 }
