@@ -32,9 +32,6 @@ impl KnapsackSolver for BranchAndBoundSolver {
                 continue;
             } //no need to explore this node, because the branch will never lead to a better solution
 
-            if node.obj > best_node.obj {
-                best_node = node;
-            }
             //We do left traversal, so first put the right node (select item i + 1) on the stack
             let selected_items_right_node = {
                 let mut v = node.selected.clone();
@@ -57,7 +54,13 @@ impl KnapsackSolver for BranchAndBoundSolver {
                 item: node.item + 1,
                 obj: node.obj,
                 best_potential: 100f64,
-            })
+            });
+
+            if node.obj > best_node.obj {
+                //This move does not result in any problems with the borrow checker, because
+                //the node only has a vector (which has been cloned) and fields that implement Copy()
+                best_node = node;
+            }
         }
 
         //assert whether item of best_node = equal to the number of items
