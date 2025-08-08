@@ -2,6 +2,7 @@ mod file_reader;
 mod knapsack;
 mod dynamic_programming;
 mod knapsack_solver;
+mod branch_and_bound;
 
 use knapsack::{KnapsackProblem};
 use crate::knapsack::KnapsackSolution;
