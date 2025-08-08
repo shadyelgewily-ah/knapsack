@@ -22,7 +22,7 @@ impl KnapsackSolver for BranchAndBoundSolver {
             best_relaxation: best_relaxation,
         };
 
-        //initialize stack for depth-first search (implemented as a Vector)
+        //initialize the tree as a stack for depth-first search traversal
         let mut branch_and_bound_tree: Vec<BranchAndBoundNode> = vec![best_node];
         while let Some(node) = branch_and_bound_tree.pop() {
             if node.item == problem.n_items {
@@ -96,5 +96,21 @@ impl BranchAndBoundSolver {
         }
 
         best_relaxation
+    }
+
+    fn _calc_best_relaxation_fractionals(
+        problem: &KnapsackProblem,
+        selected: Vec<u8>,
+        remaining_items: &[usize],
+    ) {
+        //todo: sort slice of vector with the remaining items in the order of value/weight
+        //Perhaps the algorithm is more efficient (but can become more complicated),
+        // if we do this sorting before constructing the tree
+        // Calculate remaining capacity by summing the weights of selected and subtracting from capacity
+        // initialize potential = 0
+        // while potential + weight of current item <= remaining_capacity:
+        // potential += value of current item
+        // final step: potential += ( weight_of_current_item // remaining capacity) * value of curren item
+        // return potential
     }
 }
