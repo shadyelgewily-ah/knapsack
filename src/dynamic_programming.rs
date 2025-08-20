@@ -44,15 +44,9 @@ impl fmt::Display for Matrix {
 pub struct DynamicProgrammingSolver;
 
 impl KnapsackSolver for DynamicProgrammingSolver {
-    fn solve(problem: &KnapsackProblem) -> KnapsackSolution {
-        let problem_size = problem.n_items * problem.capacity;
+    fn solve(&self, problem: &KnapsackProblem) -> KnapsackSolution {
 
-        //Maximum 8GB of RAM on 64 bit
-        if problem_size > 1_000_000_000 {
-            panic!(
-                "Problem size {} ({} x {}) is too large  for dynamic programming", problem_size, problem.n_items, problem.capacity
-            );
-        }
+
 
         let value_matrix = Self::fill_value_matrix(&problem);
         let obj_value = *value_matrix.data.last().unwrap();

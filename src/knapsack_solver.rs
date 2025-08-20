@@ -1,5 +1,5 @@
 use crate::knapsack::{KnapsackProblem, KnapsackSolution};
 
 pub trait KnapsackSolver {
-    fn solve(problem: &KnapsackProblem) -> KnapsackSolution;
+    fn solve(&self, problem: &KnapsackProblem) -> KnapsackSolution;
 }

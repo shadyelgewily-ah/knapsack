@@ -1,6 +1,7 @@
 use crate::knapsack::{KnapsackProblem, KnapsackSolution};
 use crate::knapsack_solver::KnapsackSolver;
 
+#[derive(Clone)]
 pub struct BranchAndBoundNode {
     pub selected: Vec<u8>, //To determine the selected items at the optimal solution
     pub obj: usize,        // Value of selected items up to the current node
@@ -11,7 +12,7 @@ pub struct BranchAndBoundNode {
 pub struct BranchAndBoundSolver {}
 
 impl KnapsackSolver for BranchAndBoundSolver {
-    fn solve(problem: &KnapsackProblem) -> KnapsackSolution {
+    fn solve(&self, problem: &KnapsackProblem) -> KnapsackSolution {
         // TODO: Calc best relaxation depending on the strategy
         let best_relaxation: usize = Self::_calc_best_relaxation_unlimited_capacity(&problem, &(1..=problem.n_items).collect::<Vec<usize>>());
         let mut best_node: BranchAndBoundNode = BranchAndBoundNode {
@@ -21,7 +22,7 @@ impl KnapsackSolver for BranchAndBoundSolver {
         };
 
         //initialize the tree as a stack for depth-first search traversal
-        let mut branch_and_bound_tree: Vec<BranchAndBoundNode> = vec![best_node];
+        let mut branch_and_bound_tree: Vec<BranchAndBoundNode> = vec![best_node.clone()];
         while let Some(node) = branch_and_bound_tree.pop() {
             if node.selected.len() == problem.n_items {
                 continue;
