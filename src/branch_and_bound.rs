@@ -14,7 +14,7 @@ pub struct BranchAndBoundSolver {}
 impl KnapsackSolver for BranchAndBoundSolver {
     fn solve(&self, problem: &KnapsackProblem) -> KnapsackSolution {
         // TODO: Calc best relaxation depending on the strategy
-        let best_relaxation: usize = Self::_calc_best_relaxation_unlimited_capacity(&problem, &(1..=problem.n_items).collect::<Vec<usize>>());
+        let best_relaxation: usize = Self::_calc_best_relaxation_unlimited_capacity(&problem, &(1..problem.n_items).collect::<Vec<usize>>());
         let mut best_node: BranchAndBoundNode = BranchAndBoundNode {
             selected: vec![],
             obj: 0,
@@ -26,10 +26,11 @@ impl KnapsackSolver for BranchAndBoundSolver {
         while let Some(node) = branch_and_bound_tree.pop() {
             if node.selected.len() == problem.n_items {
                 continue;
-            } //terminal node
+            } //terminal node, no need to branch
             if node.best_relaxation < best_node.obj {
                 continue;
             } //no need to explore this node, because the branch will never lead to a better solution
+            //TODO: Stop if we are already at capacity
 
             //We do left traversal, so first put the right node (don't select item i + 1) on the stack
             let selected_items_right_node = {
@@ -45,7 +46,7 @@ impl KnapsackSolver for BranchAndBoundSolver {
                 best_relaxation: new_obj_right_node
                     + Self::_calc_best_relaxation_unlimited_capacity(
                     &problem,
-                    &(node.selected.len()+1..=problem.n_items)
+                    &(node.selected.len()+1..problem.n_items-1)
                         .collect::<Vec<usize>>(),
                 ),
             });
@@ -62,11 +63,11 @@ impl KnapsackSolver for BranchAndBoundSolver {
                 .value;
             branch_and_bound_tree.push(BranchAndBoundNode {
                 selected: selected_items_left_node,
-                obj: node.obj,
+                obj: new_obj_left_node,
                 best_relaxation: new_obj_left_node
                     + Self::_calc_best_relaxation_unlimited_capacity(
                     &problem,
-                    &(node.selected.len()+1..=problem.n_items).collect::<Vec<usize>>(),
+                    &(node.selected.len()+1..problem.n_items-1).collect::<Vec<usize>>(),
                 ),
             });
 
@@ -94,7 +95,7 @@ impl BranchAndBoundSolver {
     ) -> usize {
         let mut best_relaxation: usize = 0;
         for item in remaining_items {
-            best_relaxation += problem.treasure_items.get(*item - 1).unwrap().value;
+            best_relaxation += problem.treasure_items.get(*item).unwrap().value;
         }
 
         best_relaxation
