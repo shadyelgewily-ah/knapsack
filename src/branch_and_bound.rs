@@ -28,12 +28,12 @@ impl KnapsackSolver for BranchAndBoundSolver {
 
         //initialize the tree as a stack for depth-first search traversal
         let mut branch_and_bound_tree: Vec<BranchAndBoundNode> = vec![best_node.clone()];
+        let mut nodes_explored = 0;
         while let Some(node) = branch_and_bound_tree.pop() {
-            println!(
-                "node: {:?}, best_value: {}",
-                node,
-                best_node.obj
-            );
+            nodes_explored += 1;
+            if cfg!(debug_assertions) {
+                println!("node: {:?}, best_value: {}", node, best_node.obj);
+            }
 
             let node_copy = node.clone();
             if node_copy.obj > best_node.obj {
@@ -63,16 +63,16 @@ impl KnapsackSolver for BranchAndBoundSolver {
                 //TODO: Current best relaxation - value of the current item
                 best_relaxation: new_obj_right_node
                     + Self::_calc_best_relaxation_unlimited_capacity(
-                        &problem,
-                        &(node.selected.len() + 1..problem.n_items).collect::<Vec<usize>>(),
-                    ),
+                    &problem,
+                    &(node.selected.len() + 1..problem.n_items).collect::<Vec<usize>>(),
+                ),
             });
             let new_weight_left_node = node.current_weight
                 + problem
-                    .treasure_items
-                    .get(node.selected.len())
-                    .unwrap()
-                    .weight;
+                .treasure_items
+                .get(node.selected.len())
+                .unwrap()
+                .weight;
             //Only add left node if the capacity is not yet exceeded
             if new_weight_left_node <= problem.capacity {
                 let selected_items_left_node = {
@@ -82,18 +82,24 @@ impl KnapsackSolver for BranchAndBoundSolver {
                 };
                 let new_obj_left_node = node.obj
                     + problem
-                        .treasure_items
-                        .get(node.selected.len())
-                        .unwrap()
-                        .value;
+                    .treasure_items
+                    .get(node.selected.len())
+                    .unwrap()
+                    .value;
                 branch_and_bound_tree.push(BranchAndBoundNode {
                     selected: selected_items_left_node,
                     obj: new_obj_left_node,
                     current_weight: new_weight_left_node,
                     //Unchanged, because we included the current item
-                    best_relaxation: node.best_relaxation
+
+                    // TODO: This may no longer hold in case of fractional relaxation
+                    best_relaxation: node.best_relaxation,
                 });
             }
+        }
+
+        if (cfg!(debug_assertions)) {
+            println!("Nodes explored: {}", nodes_explored);
         }
 
         //assert whether item of best_node = equal to the number of items
@@ -111,6 +117,7 @@ impl BranchAndBoundSolver {
         problem: &KnapsackProblem,
         remaining_items: &[usize],
     ) -> usize {
+        //These bounds are not very tight, therefore this can take a substantial amount of time.
         let mut best_relaxation: usize = 0;
         for item in remaining_items {
             best_relaxation += problem.treasure_items.get(*item).unwrap().value;
@@ -121,17 +128,38 @@ impl BranchAndBoundSolver {
 
     fn _calc_best_relaxation_fractionals(
         problem: &KnapsackProblem,
-        selected: Vec<u8>,
+        current_best_relaxation: usize,
+        current_weight: usize,
         remaining_items: &[usize],
     ) {
-        //todo: sort slice of vector with the remaining items in the order of value/weight
-        //Perhaps the algorithm is more efficient (but can become more complicated),
-        // if we do this sorting before constructing the tree
-        // Calculate remaining capacity by summing the weights of selected and subtracting from capacity
-        // initialize potential = 0
-        // while potential + weight of current item <= remaining_capacity:
-        // potential += value of current item
-        // final step: potential += ( weight_of_current_item // remaining capacity) * value of curren item
-        // return potential
+        //Fractional relaxation bounds are tighter, so we will explore fewer nodes
+        //TODO: The sorting can be done before constructing the tree, which is more efficient.
+        let mut sorted_items = problem.treasure_items[remaining_items].clone();
+        sorted_items.sort_by(|x, y| {
+            let ratio_x = x.value as f32 / x.weight as f32;
+            let ratio_y = y.value as f32 / y.weight as f32;
+            ratio_x.partial_cmp(&ratio_y).unwrap() //ascending order, because we pop
+        });
+
+        let mut best_relaxation = current_best_relaxation;
+        let mut remaining_capacity = problem.capacity - current_weight;
+        while let (Some(item)) = sorted_items.pop() {
+            // TODO: Is this necessarily optimal? Because a lower ratio can still have a lower weight and fit the knapsack
+            if item.weight <= remaining_capacity {
+                best_relaxation += item.value;
+                remaining_capacity -= item.weight;
+            } else {
+                break;
+            }
+        }
+
+        //add fractional value of the highest ratio (if capacity left and items left)
+        if remaining_capacity > 0 {
+            if let (Some(item)) = sorted_items.pop() {
+                best_relaxation += item.weight / remaining_capacity * item.value;
+            }
+        }
+
+        best_relaxation
     }
 }
