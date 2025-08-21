@@ -50,6 +50,26 @@ impl KnapsackProblem {
     pub fn get_weights(&self) -> Vec<usize> {
         self.treasure_items.iter().map(|item| item.weight).collect()
     }
+
+    pub fn get_best_value_per_weight_items(&self) -> Vec<KnapsackItem> {
+        //Sort treasure items in descending order of value/weight
+        let mut sorted_items: Vec<KnapsackItem> = self
+            .treasure_items
+            .iter()
+            .map(|item| KnapsackItem {
+                value: item.value,
+                weight: item.weight,
+            })
+            .collect();
+
+        sorted_items.sort_by(|x, y| {
+            let ratio_x = x.value as f32 / x.weight as f32;
+            let ratio_y = y.value as f32 / y.weight as f32;
+            ratio_y.partial_cmp(&ratio_x).unwrap() //descending order
+        });
+
+        sorted_items
+    }
 }
 #[derive(Debug, Clone)]
 pub struct KnapsackItem {

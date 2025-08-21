@@ -41,7 +41,7 @@ impl KnapsackSolver for BranchAndBoundSolver {
             &problem,
             0,
             0,
-            &(0..problem.n_items).collect::<Vec<usize>>(),
+            0,
         );
         let mut best_node: BranchAndBoundNode = BranchAndBoundNode {
             selected: vec![],
@@ -94,7 +94,7 @@ impl KnapsackSolver for BranchAndBoundSolver {
                         &problem,
                         new_obj_right_node,
                         node.current_weight,
-                        &(node.selected.len() + 1..problem.n_items).collect::<Vec<usize>>(),
+                        node.selected.len() + 1,
                     ),
             });
             let new_weight_left_node = node.current_weight
@@ -120,14 +120,11 @@ impl KnapsackSolver for BranchAndBoundSolver {
                     selected: selected_items_left_node,
                     obj: new_obj_left_node,
                     current_weight: new_weight_left_node,
-                    //Unchanged, because we included the current item
-
-                    // TODO: This may no longer hold in case of fractional relaxation
                     best_relaxation: Self::_calc_best_relaxation_fractionals(
                         &problem,
                         new_obj_left_node,
                         new_weight_left_node,
-                        &(node.selected.len() + 1..problem.n_items).collect::<Vec<usize>>(),
+                        node.selected.len() + 1
                     ),
                 });
             }
@@ -165,24 +162,14 @@ impl BranchAndBoundSolver {
         problem: &KnapsackProblem,
         current_value: usize,
         current_weight: usize,
-        remaining_items: &[usize],
+        branch_level: usize,
     ) -> usize {
-        //Fractional relaxation bounds are tighter, so we will explore fewer nodes
-        //TODO: The sorting can be done before constructing the tree, which is more efficient.
-        let mut sorted_items: Vec<KnapsackItem> = remaining_items
-            .iter()
-            .map(|&i| problem.treasure_items[i].clone())
-            .collect();
-        sorted_items.sort_by(|x, y| {
-            let ratio_x = x.value as f32 / x.weight as f32;
-            let ratio_y = y.value as f32 / y.weight as f32;
-            ratio_x.partial_cmp(&ratio_y).unwrap() //ascending order, because we pop
-        });
-
+        let sorted_items = problem.get_best_value_per_weight_items();
         let mut best_relaxation = current_value;
         let mut remaining_capacity = problem.capacity - current_weight;
-        while let (Some(item)) = sorted_items.pop() {
-            // TODO: Is this necessarily optimal? Because a lower ratio can still have a lower weight and fit the knapsack
+
+        for i in branch_level..sorted_items.len() {
+            let item = &sorted_items[i];
             if item.weight <= remaining_capacity {
                 best_relaxation += item.value;
                 remaining_capacity -= item.weight;
