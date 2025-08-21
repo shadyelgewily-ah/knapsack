@@ -54,7 +54,7 @@ impl KnapsackProblem {
     pub fn get_best_value_per_weight_items(&self) -> Vec<KnapsackItem> {
         //Sort treasure items in descending order of value/weight
         let mut sorted_items: Vec<KnapsackItem> = self
-            .treasure_items
+            .treasure_items.clone()
             .iter()
             .map(|item| KnapsackItem {
                 value: item.value,
