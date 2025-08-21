@@ -1,9 +1,10 @@
 use crate::knapsack::{KnapsackProblem, KnapsackSolution};
 use crate::knapsack_solver::KnapsackSolver;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BranchAndBoundNode {
     pub selected: Vec<u8>, //To determine the selected items at the optimal solution
+    pub current_weight: usize, // Current weight at the current node (sum of all selected items)
     pub obj: usize,        // Value of selected items up to the current node
     pub best_relaxation: usize, // Calculate the relaxation with all remaining items set to true
 }
@@ -14,9 +15,13 @@ pub struct BranchAndBoundSolver {}
 impl KnapsackSolver for BranchAndBoundSolver {
     fn solve(&self, problem: &KnapsackProblem) -> KnapsackSolution {
         // TODO: Calc best relaxation depending on the strategy
-        let best_relaxation: usize = Self::_calc_best_relaxation_unlimited_capacity(&problem, &(1..problem.n_items).collect::<Vec<usize>>());
+        let best_relaxation: usize = Self::_calc_best_relaxation_unlimited_capacity(
+            &problem,
+            &(0..problem.n_items).collect::<Vec<usize>>(),
+        );
         let mut best_node: BranchAndBoundNode = BranchAndBoundNode {
             selected: vec![],
+            current_weight: 0,
             obj: 0,
             best_relaxation: best_relaxation,
         };
@@ -24,13 +29,25 @@ impl KnapsackSolver for BranchAndBoundSolver {
         //initialize the tree as a stack for depth-first search traversal
         let mut branch_and_bound_tree: Vec<BranchAndBoundNode> = vec![best_node.clone()];
         while let Some(node) = branch_and_bound_tree.pop() {
+            println!(
+                "node: {:?}, best_value: {}",
+                node,
+                best_node.obj
+            );
+
+            let node_copy = node.clone();
+            if node_copy.obj > best_node.obj {
+                //This move does not result in any problems with the borrow checker, because
+                //the node only has a vector (which has been cloned) and fields that implement Copy()
+                best_node = node_copy;
+            }
+
             if node.selected.len() == problem.n_items {
                 continue;
             } //terminal node, no need to branch
             if node.best_relaxation < best_node.obj {
                 continue;
             } //no need to explore this node, because the branch will never lead to a better solution
-            //TODO: Stop if we are already at capacity
 
             //We do left traversal, so first put the right node (don't select item i + 1) on the stack
             let selected_items_right_node = {
@@ -42,39 +59,40 @@ impl KnapsackSolver for BranchAndBoundSolver {
             branch_and_bound_tree.push(BranchAndBoundNode {
                 selected: selected_items_right_node,
                 obj: new_obj_right_node,
-                //try to simplify this
+                current_weight: node.current_weight,
+                //TODO: Current best relaxation - value of the current item
                 best_relaxation: new_obj_right_node
                     + Self::_calc_best_relaxation_unlimited_capacity(
-                    &problem,
-                    &(node.selected.len()+1..problem.n_items-1)
-                        .collect::<Vec<usize>>(),
-                ),
+                        &problem,
+                        &(node.selected.len() + 1..problem.n_items).collect::<Vec<usize>>(),
+                    ),
             });
-            let selected_items_left_node = {
-                let mut v = node.selected.clone();
-                v.push(1);
-                v
-            };
-            let new_obj_left_node = node.obj
+            let new_weight_left_node = node.current_weight
                 + problem
-                .treasure_items
-                .get(node.selected.len())
-                .unwrap()
-                .value;
-            branch_and_bound_tree.push(BranchAndBoundNode {
-                selected: selected_items_left_node,
-                obj: new_obj_left_node,
-                best_relaxation: new_obj_left_node
-                    + Self::_calc_best_relaxation_unlimited_capacity(
-                    &problem,
-                    &(node.selected.len()+1..problem.n_items-1).collect::<Vec<usize>>(),
-                ),
-            });
-
-            if node.obj > best_node.obj {
-                //This move does not result in any problems with the borrow checker, because
-                //the node only has a vector (which has been cloned) and fields that implement Copy()
-                best_node = node;
+                    .treasure_items
+                    .get(node.selected.len())
+                    .unwrap()
+                    .weight;
+            //Only add left node if the capacity is not yet exceeded
+            if new_weight_left_node <= problem.capacity {
+                let selected_items_left_node = {
+                    let mut v = node.selected.clone();
+                    v.push(1);
+                    v
+                };
+                let new_obj_left_node = node.obj
+                    + problem
+                        .treasure_items
+                        .get(node.selected.len())
+                        .unwrap()
+                        .value;
+                branch_and_bound_tree.push(BranchAndBoundNode {
+                    selected: selected_items_left_node,
+                    obj: new_obj_left_node,
+                    current_weight: new_weight_left_node,
+                    //Unchanged, because we included the current item
+                    best_relaxation: node.best_relaxation
+                });
             }
         }
 
@@ -83,7 +101,7 @@ impl KnapsackSolver for BranchAndBoundSolver {
         KnapsackSolution {
             obj: best_node.obj,
             opt: true,
-            selected_items: vec![],
+            selected_items: best_node.selected,
         }
     }
 }
