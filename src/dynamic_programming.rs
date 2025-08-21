@@ -46,7 +46,7 @@ pub struct DynamicProgrammingSolver;
 impl KnapsackSolver for DynamicProgrammingSolver {
     fn solve(&self, problem: &KnapsackProblem) -> KnapsackSolution {
 
-
+        println!("Solving with dynamic programming...");
 
         let value_matrix = Self::fill_value_matrix(&problem);
         let obj_value = *value_matrix.data.last().unwrap();

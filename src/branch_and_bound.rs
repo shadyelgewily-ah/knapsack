@@ -1,7 +1,8 @@
+use std::arch::aarch64::vsli_n_p8;
 use crate::knapsack::{KnapsackItem, KnapsackProblem, KnapsackSolution};
 use crate::knapsack_solver::KnapsackSolver;
 use std::cmp::Ordering;
-use std::collections::BinaryHeap;
+use std::collections::{BinaryHeap, HashSet};
 
 #[derive(Clone, Debug)]
 pub struct BranchAndBoundNode {
@@ -36,12 +37,15 @@ pub struct BranchAndBoundSolver {}
 
 impl KnapsackSolver for BranchAndBoundSolver {
     fn solve(&self, problem: &KnapsackProblem) -> KnapsackSolution {
+
+        println!("Solving with branch and bound...");
+
         // TODO: Calc best relaxation depending on the strategy
         let best_relaxation: usize = Self::_calc_best_relaxation_fractionals(
             &problem,
             0,
             0,
-            0,
+            0
         );
         let mut best_node: BranchAndBoundNode = BranchAndBoundNode {
             selected: vec![],
@@ -51,6 +55,7 @@ impl KnapsackSolver for BranchAndBoundSolver {
         };
 
         //initialize the tree as a stack for depth-first search traversal
+        // TODO: Make this configurable
         //let mut branch_and_bound_tree: Vec<BranchAndBoundNode> = vec![];
 
         //Initialize the tree as a binary heap for best-first search traversal
@@ -60,7 +65,7 @@ impl KnapsackSolver for BranchAndBoundSolver {
         let mut nodes_explored = 0;
         while let Some(node) = branch_and_bound_tree.pop() {
             if cfg!(debug_assertions) {
-                println!("node: {:?}, best_value: {}", node, best_node.obj);
+                //println!("node: {:?}, best_value: {}", node, best_node.obj);
             }
 
             let node_copy = node.clone();
@@ -94,7 +99,7 @@ impl KnapsackSolver for BranchAndBoundSolver {
                         &problem,
                         new_obj_right_node,
                         node.current_weight,
-                        node.selected.len() + 1,
+                        node.selected.len() + 1
                     ),
             });
             let new_weight_left_node = node.current_weight
@@ -136,6 +141,8 @@ impl KnapsackSolver for BranchAndBoundSolver {
 
         //assert whether item of best_node = equal to the number of items
         //Branch and bound will always find the optimal solution
+        // TODO: When we have not explored the full tree, we need to append 0s for all remaining items.
+        // Otherwise the solution will be correct but the selected items will be incorrect.
         KnapsackSolution {
             obj: best_node.obj,
             opt: true,
@@ -162,14 +169,27 @@ impl BranchAndBoundSolver {
         problem: &KnapsackProblem,
         current_value: usize,
         current_weight: usize,
-        branch_level: usize,
+        items_visited: usize,
     ) -> usize {
+        // TODO: The subtle difference between sorting every decision node versus only once at the start
+        // is that we must keep track which items are already selected, and only consider the remaining items
+        // for updating the relaxation.
+        // The example in the course where the first node gives partial relaxation 90 in my buggy solution
+        // versus 92 in the example shows why things may go wrong. The real relaxation is 92,
+        // but we think it is 90. So if we had found a solution with value 91, this branch would never be explored
+        // even though the best solution can be 92.
         let sorted_items = problem.get_best_value_per_weight_items();
         let mut best_relaxation = current_value;
         let mut remaining_capacity = problem.capacity - current_weight;
 
-        for i in branch_level..sorted_items.len() {
-            let item = &sorted_items[i];
+        let remaining_sorted_items: Vec<(usize, KnapsackItem)> = sorted_items
+            .iter()
+            // Only consider the items that we have not seen yet
+            .filter(|(original_idx, _)| *original_idx >= items_visited)
+            .cloned()
+            .collect();
+
+        for (_, item) in remaining_sorted_items {
             if item.weight <= remaining_capacity {
                 best_relaxation += item.value;
                 remaining_capacity -= item.weight;
