@@ -1,5 +1,7 @@
 use crate::knapsack::{KnapsackItem, KnapsackProblem, KnapsackSolution};
 use crate::knapsack_solver::KnapsackSolver;
+use std::cmp::Ordering;
+use std::collections::BinaryHeap;
 
 #[derive(Clone, Debug)]
 pub struct BranchAndBoundNode {
@@ -7,6 +9,26 @@ pub struct BranchAndBoundNode {
     pub current_weight: usize, // Current weight at the current node (sum of all selected items)
     pub obj: usize,        // Value of selected items up to the current node
     pub best_relaxation: usize, // Calculate the relaxation with all remaining items set to true
+}
+
+impl PartialEq for BranchAndBoundNode {
+    fn eq(&self, other: &Self) -> bool {
+        self.best_relaxation == other.best_relaxation
+    }
+}
+
+impl Eq for BranchAndBoundNode {}
+
+impl PartialOrd for BranchAndBoundNode {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.best_relaxation.partial_cmp(&other.best_relaxation)
+    }
+}
+
+impl Ord for BranchAndBoundNode {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.partial_cmp(other).unwrap()
+    }
 }
 
 // Add a converter to convert a BranchAndBoundNode to KnapsackSolution
@@ -29,10 +51,14 @@ impl KnapsackSolver for BranchAndBoundSolver {
         };
 
         //initialize the tree as a stack for depth-first search traversal
-        let mut branch_and_bound_tree: Vec<BranchAndBoundNode> = vec![best_node.clone()];
+        //let mut branch_and_bound_tree: Vec<BranchAndBoundNode> = vec![];
+
+        //Initialize the tree as a binary heap for best-first search traversal
+        let mut branch_and_bound_tree = BinaryHeap::new();
+        branch_and_bound_tree.push(best_node.clone());
+
         let mut nodes_explored = 0;
         while let Some(node) = branch_and_bound_tree.pop() {
-            nodes_explored += 1;
             if cfg!(debug_assertions) {
                 println!("node: {:?}, best_value: {}", node, best_node.obj);
             }
@@ -47,9 +73,11 @@ impl KnapsackSolver for BranchAndBoundSolver {
             if node.selected.len() == problem.n_items {
                 continue;
             } //terminal node, no need to branch
-            if node.best_relaxation < best_node.obj {
+            if node.best_relaxation <= best_node.obj {
                 continue;
             } //no need to explore this node, because the branch will never lead to a better solution
+
+            nodes_explored += 1;
 
             //We do left traversal, so first put the right node (don't select item i + 1) on the stack
             let selected_items_right_node = {
@@ -62,10 +90,9 @@ impl KnapsackSolver for BranchAndBoundSolver {
                 selected: selected_items_right_node,
                 obj: new_obj_right_node,
                 current_weight: node.current_weight,
-                best_relaxation: new_obj_right_node
-                    + Self::_calc_best_relaxation_fractionals(
+                best_relaxation: Self::_calc_best_relaxation_fractionals(
                         &problem,
-                        node.best_relaxation,
+                        new_obj_right_node,
                         node.current_weight,
                         &(node.selected.len() + 1..problem.n_items).collect::<Vec<usize>>(),
                     ),
@@ -96,7 +123,12 @@ impl KnapsackSolver for BranchAndBoundSolver {
                     //Unchanged, because we included the current item
 
                     // TODO: This may no longer hold in case of fractional relaxation
-                    best_relaxation: node.best_relaxation,
+                    best_relaxation: Self::_calc_best_relaxation_fractionals(
+                        &problem,
+                        new_obj_left_node,
+                        new_weight_left_node,
+                        &(node.selected.len() + 1..problem.n_items).collect::<Vec<usize>>(),
+                    ),
                 });
             }
         }
@@ -131,7 +163,7 @@ impl BranchAndBoundSolver {
 
     fn _calc_best_relaxation_fractionals(
         problem: &KnapsackProblem,
-        current_best_relaxation: usize,
+        current_value: usize,
         current_weight: usize,
         remaining_items: &[usize],
     ) -> usize {
@@ -147,7 +179,7 @@ impl BranchAndBoundSolver {
             ratio_x.partial_cmp(&ratio_y).unwrap() //ascending order, because we pop
         });
 
-        let mut best_relaxation = current_best_relaxation;
+        let mut best_relaxation = current_value;
         let mut remaining_capacity = problem.capacity - current_weight;
         while let (Some(item)) = sorted_items.pop() {
             // TODO: Is this necessarily optimal? Because a lower ratio can still have a lower weight and fit the knapsack
