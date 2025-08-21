@@ -1,4 +1,4 @@
-use crate::knapsack::{KnapsackProblem, KnapsackSolution};
+use crate::knapsack::{KnapsackItem, KnapsackProblem, KnapsackSolution};
 use crate::knapsack_solver::KnapsackSolver;
 
 #[derive(Clone, Debug)]
@@ -15,8 +15,10 @@ pub struct BranchAndBoundSolver {}
 impl KnapsackSolver for BranchAndBoundSolver {
     fn solve(&self, problem: &KnapsackProblem) -> KnapsackSolution {
         // TODO: Calc best relaxation depending on the strategy
-        let best_relaxation: usize = Self::_calc_best_relaxation_unlimited_capacity(
+        let best_relaxation: usize = Self::_calc_best_relaxation_fractionals(
             &problem,
+            0,
+            0,
             &(0..problem.n_items).collect::<Vec<usize>>(),
         );
         let mut best_node: BranchAndBoundNode = BranchAndBoundNode {
@@ -60,19 +62,20 @@ impl KnapsackSolver for BranchAndBoundSolver {
                 selected: selected_items_right_node,
                 obj: new_obj_right_node,
                 current_weight: node.current_weight,
-                //TODO: Current best relaxation - value of the current item
                 best_relaxation: new_obj_right_node
-                    + Self::_calc_best_relaxation_unlimited_capacity(
-                    &problem,
-                    &(node.selected.len() + 1..problem.n_items).collect::<Vec<usize>>(),
-                ),
+                    + Self::_calc_best_relaxation_fractionals(
+                        &problem,
+                        node.best_relaxation,
+                        node.current_weight,
+                        &(node.selected.len() + 1..problem.n_items).collect::<Vec<usize>>(),
+                    ),
             });
             let new_weight_left_node = node.current_weight
                 + problem
-                .treasure_items
-                .get(node.selected.len())
-                .unwrap()
-                .weight;
+                    .treasure_items
+                    .get(node.selected.len())
+                    .unwrap()
+                    .weight;
             //Only add left node if the capacity is not yet exceeded
             if new_weight_left_node <= problem.capacity {
                 let selected_items_left_node = {
@@ -82,10 +85,10 @@ impl KnapsackSolver for BranchAndBoundSolver {
                 };
                 let new_obj_left_node = node.obj
                     + problem
-                    .treasure_items
-                    .get(node.selected.len())
-                    .unwrap()
-                    .value;
+                        .treasure_items
+                        .get(node.selected.len())
+                        .unwrap()
+                        .value;
                 branch_and_bound_tree.push(BranchAndBoundNode {
                     selected: selected_items_left_node,
                     obj: new_obj_left_node,
@@ -131,10 +134,13 @@ impl BranchAndBoundSolver {
         current_best_relaxation: usize,
         current_weight: usize,
         remaining_items: &[usize],
-    ) {
+    ) -> usize {
         //Fractional relaxation bounds are tighter, so we will explore fewer nodes
         //TODO: The sorting can be done before constructing the tree, which is more efficient.
-        let mut sorted_items = problem.treasure_items[remaining_items].clone();
+        let mut sorted_items: Vec<KnapsackItem> = remaining_items
+            .iter()
+            .map(|&i| problem.treasure_items[i].clone())
+            .collect();
         sorted_items.sort_by(|x, y| {
             let ratio_x = x.value as f32 / x.weight as f32;
             let ratio_y = y.value as f32 / y.weight as f32;
@@ -148,15 +154,13 @@ impl BranchAndBoundSolver {
             if item.weight <= remaining_capacity {
                 best_relaxation += item.value;
                 remaining_capacity -= item.weight;
+            } else if remaining_capacity > 0 {
+                //add fractional value of the highest ratio (if capacity left and items left)
+                best_relaxation +=
+                    ((remaining_capacity as f32 / item.weight as f32) * item.value as f32) as usize;
+                break;
             } else {
                 break;
-            }
-        }
-
-        //add fractional value of the highest ratio (if capacity left and items left)
-        if remaining_capacity > 0 {
-            if let (Some(item)) = sorted_items.pop() {
-                best_relaxation += item.weight / remaining_capacity * item.value;
             }
         }
 

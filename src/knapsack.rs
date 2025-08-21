@@ -51,7 +51,7 @@ impl KnapsackProblem {
         self.treasure_items.iter().map(|item| item.weight).collect()
     }
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct KnapsackItem {
     pub value: usize,
     pub weight: usize,
