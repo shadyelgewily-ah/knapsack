@@ -83,6 +83,8 @@ impl KnapsackSolver for BranchAndBoundSolver {
         //let mut branch_and_bound_tree: Vec<BranchAndBoundNode> = vec![];
 
         //Initialize the tree as a binary heap for best-first search traversal
+        // The priority queue will grow enormous in memory if we don't periodically empty it
+        // Therefore, we will periodically drain the binary heap and only retain promising nodes.
         let mut branch_and_bound_tree = BinaryHeap::new();
         branch_and_bound_tree.push(best_node.clone());
 
@@ -93,8 +95,13 @@ impl KnapsackSolver for BranchAndBoundSolver {
             // which is not trivial
             self._optimality_perc = (best_node.obj as f32 / node.best_relaxation as f32).min(1f32);
 
-            if cfg!(debug_assertions) {
-                if best_node.obj > 0 && self._nodes_explored % 100000 == 0 {
+            if best_node.obj > 0 && self._nodes_explored % 100000 == 0 {
+                branch_and_bound_tree = branch_and_bound_tree
+                    .drain()
+                    .filter(|node| node.best_relaxation >= best_node.obj)
+                    .collect();
+                if cfg!(debug_assertions) {
+                    println!("Pruned the priority queue/stack to reduce memory consumption");
                     println!(
                         "Nodes explored: {}, Best value: {}, best upper bound: {}, optimality bound % {}",
                         self._nodes_explored,
@@ -139,7 +146,7 @@ impl KnapsackSolver for BranchAndBoundSolver {
                     .weight;
             //Only add left node if the capacity is not yet exceeded
             if new_weight_left_node <= problem.capacity {
-                let mut selected_items_left_node= node.selected.clone();
+                let mut selected_items_left_node = node.selected.clone();
                 selected_items_left_node.push(0);
                 let new_obj_left_node = node.obj
                     + problem
@@ -160,7 +167,7 @@ impl KnapsackSolver for BranchAndBoundSolver {
                     ),
                 });
             }
-            let mut selected_items_right_node= node.selected; //Move, to avoid expensive copy of vector<u8>
+            let mut selected_items_right_node = node.selected; //Move, to avoid expensive copy of vector<u8>
             selected_items_right_node.push(0);
             let items_visited: usize = selected_items_right_node.len();
             branch_and_bound_tree.push(BranchAndBoundNode {
