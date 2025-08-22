@@ -115,11 +115,9 @@ impl KnapsackSolver for BranchAndBoundSolver {
                 break;
             }
 
-            let node_copy = node.clone();
-            if node_copy.obj > best_node.obj {
-                //This move does not result in any problems with the borrow checker, because
-                //the node only has a vector (which has been cloned) and fields that implement Copy()
-                best_node = node_copy;
+            if node.obj > best_node.obj {
+                //Only clone if needed
+                best_node = node.clone();
             }
 
             if node.selected.len() == problem.n_items {
