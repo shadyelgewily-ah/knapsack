@@ -63,10 +63,14 @@ impl Default for BranchAndBoundSolver {
 
 impl KnapsackSolver for BranchAndBoundSolver {
     fn solve(&mut self, problem: &KnapsackProblem) -> KnapsackSolution {
-        println!("Solving with branch and bound...");
+        if (cfg!(debug_assertions)) {
+            println!("Solving with branch and bound...");
+        }
         let start_time = Instant::now();
 
-        self._best_relaxation = Self::_calc_best_relaxation_fractionals(&problem, 0, 0, 0);
+        let sorted_items = problem.get_best_value_per_weight_items();
+        self._best_relaxation =
+            Self::_calc_best_relaxation_fractionals(&sorted_items, &problem, 0, 0, 0);
         let mut best_node: BranchAndBoundNode = BranchAndBoundNode {
             selected: vec![],
             current_weight: 0,
@@ -140,6 +144,7 @@ impl KnapsackSolver for BranchAndBoundSolver {
                 obj: new_obj_right_node,
                 current_weight: node.current_weight,
                 best_relaxation: Self::_calc_best_relaxation_fractionals(
+                    &sorted_items,
                     &problem,
                     new_obj_right_node,
                     node.current_weight,
@@ -170,6 +175,7 @@ impl KnapsackSolver for BranchAndBoundSolver {
                     obj: new_obj_left_node,
                     current_weight: new_weight_left_node,
                     best_relaxation: Self::_calc_best_relaxation_fractionals(
+                        &sorted_items,
                         &problem,
                         new_obj_left_node,
                         new_weight_left_node,
@@ -184,7 +190,10 @@ impl KnapsackSolver for BranchAndBoundSolver {
             println!("Program ran in {:?} seconds", elapsed);
             println!(
                 "Best score: {}, optimality perc: {}%, weight of knapsack: {}, capacity: {}",
-                best_node.obj, self._optimality_perc * 100f32, best_node.current_weight, problem.capacity
+                best_node.obj,
+                self._optimality_perc * 100f32,
+                best_node.current_weight,
+                problem.capacity
             )
         }
 
@@ -213,6 +222,7 @@ impl BranchAndBoundSolver {
     }
 
     fn _calc_best_relaxation_fractionals(
+        sorted_items: &Vec<(usize, KnapsackItem)>,
         problem: &KnapsackProblem,
         current_value: usize,
         current_weight: usize,
@@ -225,7 +235,6 @@ impl BranchAndBoundSolver {
         // versus 92 in the example shows why things may go wrong. The real relaxation is 92,
         // but we think it is 90. So if we had found a solution with value 91, this branch would never be explored
         // even though the best solution can be 92.
-        let sorted_items = problem.get_best_value_per_weight_items();
         let mut best_relaxation = current_value;
         let mut remaining_capacity = problem.capacity - current_weight;
 
