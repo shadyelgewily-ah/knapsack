@@ -132,25 +132,7 @@ impl KnapsackSolver for BranchAndBoundSolver {
             //TODO: This is not really 'nodes explored', improve this
             self._nodes_explored += 1;
 
-            //We do left traversal, so first put the right node (don't select item i + 1) on the stack
-            let selected_items_right_node = {
-                let mut v = node.selected.clone();
-                v.push(0);
-                v
-            };
-            let new_obj_right_node = node.obj;
-            branch_and_bound_tree.push(BranchAndBoundNode {
-                selected: selected_items_right_node,
-                obj: new_obj_right_node,
-                current_weight: node.current_weight,
-                best_relaxation: Self::_calc_best_relaxation_fractionals(
-                    &sorted_items,
-                    &problem,
-                    new_obj_right_node,
-                    node.current_weight,
-                    node.selected.len() + 1,
-                ),
-            });
+            //We do right traversal, so we only need fewer copies
             let new_weight_left_node = node.current_weight
                 + problem
                     .treasure_items
@@ -159,11 +141,8 @@ impl KnapsackSolver for BranchAndBoundSolver {
                     .weight;
             //Only add left node if the capacity is not yet exceeded
             if new_weight_left_node <= problem.capacity {
-                let selected_items_left_node = {
-                    let mut v = node.selected.clone();
-                    v.push(1);
-                    v
-                };
+                let mut selected_items_left_node= node.selected.clone();
+                selected_items_left_node.push(0);
                 let new_obj_left_node = node.obj
                     + problem
                         .treasure_items
@@ -183,6 +162,21 @@ impl KnapsackSolver for BranchAndBoundSolver {
                     ),
                 });
             }
+            let mut selected_items_right_node= node.selected; //Move, to avoid expensive copy of vector<u8>
+            selected_items_right_node.push(0);
+            let items_visited: usize = selected_items_right_node.len();
+            branch_and_bound_tree.push(BranchAndBoundNode {
+                selected: selected_items_right_node,
+                obj: node.obj,
+                current_weight: node.current_weight,
+                best_relaxation: Self::_calc_best_relaxation_fractionals(
+                    &sorted_items,
+                    &problem,
+                    node.obj,
+                    node.current_weight,
+                    items_visited,
+                ),
+            });
         }
 
         if (cfg!(debug_assertions)) {
