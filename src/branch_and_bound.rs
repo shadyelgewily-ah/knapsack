@@ -94,7 +94,7 @@ impl KnapsackSolver for BranchAndBoundSolver {
             self._optimality_perc = (best_node.obj as f32 / node.best_relaxation as f32).min(1f32);
 
             if cfg!(debug_assertions) {
-                if best_node.obj > 0 && self._nodes_explored % 1000 == 0 {
+                if best_node.obj > 0 && self._nodes_explored % 100000 == 0 {
                     println!(
                         "Nodes explored: {}, Best value: {}, best upper bound: {}, optimality bound % {}",
                         self._nodes_explored,
@@ -230,13 +230,10 @@ impl BranchAndBoundSolver {
         let mut best_relaxation = current_value;
         let mut remaining_capacity = problem.capacity - current_weight;
 
-        let remaining_sorted_items: Vec<&(usize, KnapsackItem)> = sorted_items
-            .iter()
-            // Only consider the items that we have not seen yet
-            .filter(|(original_idx, _)| *original_idx >= items_visited)
-            .collect();
-
-        for (_, item) in remaining_sorted_items {
+        for (original_idx, item) in sorted_items {
+            if *original_idx < items_visited {
+                continue; // this item can no longer be selected
+            }
             if item.weight <= remaining_capacity {
                 best_relaxation += item.value;
                 remaining_capacity -= item.weight;
