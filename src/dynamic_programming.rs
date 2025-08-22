@@ -44,7 +44,7 @@ impl fmt::Display for Matrix {
 pub struct DynamicProgrammingSolver;
 
 impl KnapsackSolver for DynamicProgrammingSolver {
-    fn solve(&self, problem: &KnapsackProblem) -> KnapsackSolution {
+    fn solve(&mut self, problem: &KnapsackProblem) -> KnapsackSolution {
 
         println!("Solving with dynamic programming...");
 

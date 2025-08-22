@@ -20,8 +20,8 @@ fn main() {
 
     let problem_size = knapsack_problem.n_items * knapsack_problem.capacity;
 
-    let solver: Box<dyn KnapsackSolver> = match problem_size {
-        size if size >= 1_000_000 => Box::new(BranchAndBoundSolver {}),
+    let mut solver: Box<dyn KnapsackSolver> = match problem_size {
+        size if size >= 1_000_000 => Box::new(BranchAndBoundSolver::default()),
         _ => Box::new(DynamicProgrammingSolver {}),
     };
     let soln: KnapsackSolution = solver.solve(&knapsack_problem);

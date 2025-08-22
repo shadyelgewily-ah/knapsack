@@ -1,9 +1,19 @@
-use std::arch::aarch64::vsli_n_p8;
 use crate::knapsack::{KnapsackItem, KnapsackProblem, KnapsackSolution};
 use crate::knapsack_solver::KnapsackSolver;
+use std::arch::aarch64::vsli_n_p8;
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashSet};
+use std::time::Instant;
 
+//TODO: Performance improvements:
+// - only update the bound by using the previous bound + whether the item was selected or not
+// (to avoid O(n) operations when scanning through the vector and making it O(1))
+// No clones by using references, if possible.
+//TODO: At any depth in the tree, there is some structure to the value of the bound, because
+// we only recompute it partly (by using a different value and different remaining capacity)
+
+//TODO: We can also cut off the process after 1 hour or so. Probably we have a very good solution by then.
+//Another approach is to quit early when the best solution is within 1% of the best upper bound
 #[derive(Clone, Debug)]
 pub struct BranchAndBoundNode {
     pub selected: Vec<u8>, //To determine the selected items at the optimal solution
@@ -33,39 +43,72 @@ impl Ord for BranchAndBoundNode {
 }
 
 // Add a converter to convert a BranchAndBoundNode to KnapsackSolution
-pub struct BranchAndBoundSolver {}
+pub struct BranchAndBoundSolver {
+    _nodes_explored: usize,
+    _best_relaxation: usize,
+    _optimality_perc: f32,
+    _early_stopping_activated: bool,
+}
+
+impl Default for BranchAndBoundSolver {
+    fn default() -> Self {
+        Self {
+            _nodes_explored: 0,
+            _best_relaxation: 10000000,
+            _optimality_perc: 0f32,
+            _early_stopping_activated: false,
+        }
+    }
+}
 
 impl KnapsackSolver for BranchAndBoundSolver {
-    fn solve(&self, problem: &KnapsackProblem) -> KnapsackSolution {
-
+    fn solve(&mut self, problem: &KnapsackProblem) -> KnapsackSolution {
         println!("Solving with branch and bound...");
+        let start_time = Instant::now();
 
-        // TODO: Calc best relaxation depending on the strategy
-        let best_relaxation: usize = Self::_calc_best_relaxation_fractionals(
-            &problem,
-            0,
-            0,
-            0
-        );
+        self._best_relaxation = Self::_calc_best_relaxation_fractionals(&problem, 0, 0, 0);
         let mut best_node: BranchAndBoundNode = BranchAndBoundNode {
             selected: vec![],
             current_weight: 0,
             obj: 0,
-            best_relaxation: best_relaxation,
+            best_relaxation: self._best_relaxation,
         };
 
         //initialize the tree as a stack for depth-first search traversal
-        // TODO: Make this configurable
+        // TODO: Make this configurable (but then how do we early stop?)
         //let mut branch_and_bound_tree: Vec<BranchAndBoundNode> = vec![];
 
         //Initialize the tree as a binary heap for best-first search traversal
         let mut branch_and_bound_tree = BinaryHeap::new();
         branch_and_bound_tree.push(best_node.clone());
 
-        let mut nodes_explored = 0;
+        self._nodes_explored = 0;
         while let Some(node) = branch_and_bound_tree.pop() {
+            // TODO: Best relaxation only works with Priority Queue
+            // For stack we need to keep track when that relaxation has already been explored
+            // which is not trivial
+            self._optimality_perc = (best_node.obj as f32 / node.best_relaxation as f32).min(1f32);
+
             if cfg!(debug_assertions) {
-                //println!("node: {:?}, best_value: {}", node, best_node.obj);
+                if best_node.obj > 0 && self._nodes_explored % 1000 == 0 {
+                    println!(
+                        "Nodes explored: {}, Best value: {}, best upper bound: {}, optimality bound % {}",
+                        self._nodes_explored,
+                        best_node.obj,
+                        node.best_relaxation,
+                        self._optimality_perc
+                    )
+                }
+            }
+
+            if start_time.elapsed().as_secs() >= 120 {
+                self._early_stopping_activated = true;
+                if cfg!(debug_assertions) {
+                    println!(
+                        "Early stopping activated, good enough solution found or time exceeded."
+                    );
+                }
+                break;
             }
 
             let node_copy = node.clone();
@@ -82,7 +125,8 @@ impl KnapsackSolver for BranchAndBoundSolver {
                 continue;
             } //no need to explore this node, because the branch will never lead to a better solution
 
-            nodes_explored += 1;
+            //TODO: This is not really 'nodes explored', improve this
+            self._nodes_explored += 1;
 
             //We do left traversal, so first put the right node (don't select item i + 1) on the stack
             let selected_items_right_node = {
@@ -96,11 +140,11 @@ impl KnapsackSolver for BranchAndBoundSolver {
                 obj: new_obj_right_node,
                 current_weight: node.current_weight,
                 best_relaxation: Self::_calc_best_relaxation_fractionals(
-                        &problem,
-                        new_obj_right_node,
-                        node.current_weight,
-                        node.selected.len() + 1
-                    ),
+                    &problem,
+                    new_obj_right_node,
+                    node.current_weight,
+                    node.selected.len() + 1,
+                ),
             });
             let new_weight_left_node = node.current_weight
                 + problem
@@ -129,23 +173,26 @@ impl KnapsackSolver for BranchAndBoundSolver {
                         &problem,
                         new_obj_left_node,
                         new_weight_left_node,
-                        node.selected.len() + 1
+                        node.selected.len() + 1,
                     ),
                 });
             }
         }
 
         if (cfg!(debug_assertions)) {
-            println!("Nodes explored: {}", nodes_explored);
+            let elapsed = start_time.elapsed().as_secs();
+            println!("Program ran in {:?} seconds", elapsed);
+            println!(
+                "Best score: {}, optimality perc: {}%, weight of knapsack: {}, capacity: {}",
+                best_node.obj, self._optimality_perc * 100f32, best_node.current_weight, problem.capacity
+            )
         }
 
-        //assert whether item of best_node = equal to the number of items
-        //Branch and bound will always find the optimal solution
-        // TODO: When we have not explored the full tree, we need to append 0s for all remaining items.
-        // Otherwise the solution will be correct but the selected items will be incorrect.
+        //Right pad with 0s in case the best solution is not a terminal node
+        best_node.selected.resize(problem.n_items, 0);
         KnapsackSolution {
             obj: best_node.obj,
-            opt: true,
+            opt: !self._early_stopping_activated,
             selected_items: best_node.selected,
         }
     }
