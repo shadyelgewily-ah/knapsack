@@ -230,11 +230,10 @@ impl BranchAndBoundSolver {
         let mut best_relaxation = current_value;
         let mut remaining_capacity = problem.capacity - current_weight;
 
-        let remaining_sorted_items: Vec<(usize, KnapsackItem)> = sorted_items
+        let remaining_sorted_items: Vec<&(usize, KnapsackItem)> = sorted_items
             .iter()
             // Only consider the items that we have not seen yet
             .filter(|(original_idx, _)| *original_idx >= items_visited)
-            .cloned()
             .collect();
 
         for (_, item) in remaining_sorted_items {
