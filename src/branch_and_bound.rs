@@ -147,7 +147,7 @@ impl KnapsackSolver for BranchAndBoundSolver {
             //Only add left node if the capacity is not yet exceeded
             if new_weight_left_node <= problem.capacity {
                 let mut selected_items_left_node = node.selected.clone();
-                selected_items_left_node.push(0);
+                selected_items_left_node.push(1);
                 let new_obj_left_node = node.obj
                     + problem
                         .treasure_items
