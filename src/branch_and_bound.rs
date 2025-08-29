@@ -133,7 +133,6 @@ impl BranchAndBoundSolver {
         current_weight: usize,
         items_visited: usize,
     ) -> usize {
-        //
         let mut best_relaxation = current_value;
         let mut remaining_capacity = problem.capacity - current_weight;
 
@@ -170,16 +169,10 @@ impl BranchAndBoundSolver {
         selected_items.push(include_next as u8);
 
         if include_next {
-            new_obj += problem
-                .treasure_items
-                .get(current_node.selected.len())
-                .unwrap()
-                .value;
-            new_weight += problem
-                .treasure_items
-                .get(current_node.selected.len())
-                .unwrap()
-                .weight;
+            if let Some(item) = problem.treasure_items.get(current_node.selected.len()) {
+                new_obj += item.value;
+                new_weight += item.weight;
+            }
         }
 
         if new_weight > problem.capacity {
