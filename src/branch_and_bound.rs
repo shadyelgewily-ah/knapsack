@@ -97,7 +97,12 @@ impl KnapsackSolver for BranchAndBoundSolver {
                 best_node = node.clone();
             }
 
-            self._should_stop(&problem, &best_node, &node);
+            match self._should_stop(&problem, &best_node, &node) {
+                NodeExplorationState::TimeLimit => break,
+                NodeExplorationState::TerminalNode => continue,
+                NodeExplorationState::NoBetterSolution => continue,
+                NodeExplorationState::KeepExploring => {}
+            }
 
             match self._create_new_node(&sorted_items, &problem, &node, true) {
                 None => continue,
@@ -239,11 +244,7 @@ impl BranchAndBoundSolver {
         KeepExploring
     }
 
-    fn _report_final_status(
-        &self,
-        problem: &KnapsackProblem,
-        best_node: &BranchAndBoundNode,
-    ) {
+    fn _report_final_status(&self, problem: &KnapsackProblem, best_node: &BranchAndBoundNode) {
         if (cfg!(debug_assertions)) {
             let elapsed = self._start_time.elapsed().as_secs();
             println!("Program ran in {:?} seconds", elapsed);
