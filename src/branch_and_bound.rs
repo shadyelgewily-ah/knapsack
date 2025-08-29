@@ -1,10 +1,10 @@
+use crate::branch_and_bound::NodeExplorationState::KeepExploring;
 use crate::knapsack::{KnapsackItem, KnapsackProblem, KnapsackSolution};
 use crate::knapsack_solver::KnapsackSolver;
 use std::arch::aarch64::vsli_n_p8;
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashSet};
 use std::time::Instant;
-
 //TODO: Performance improvements:
 // - only update the bound by using the previous bound + whether the item was selected or not
 // (to avoid O(n) operations when scanning through the vector and making it O(1))
@@ -48,11 +48,13 @@ pub struct BranchAndBoundSolver {
     _best_relaxation: usize,
     _optimality_perc: f32,
     _early_stopping_activated: bool,
+    _start_time: Instant,
 }
 
 impl Default for BranchAndBoundSolver {
     fn default() -> Self {
         Self {
+            _start_time: Instant::now(),
             _nodes_explored: 0,
             _best_relaxation: 10000000,
             _optimality_perc: 0f32,
@@ -66,8 +68,6 @@ impl KnapsackSolver for BranchAndBoundSolver {
         if (cfg!(debug_assertions)) {
             println!("Solving with branch and bound...");
         }
-        let start_time = Instant::now();
-
         let sorted_items = problem.get_best_value_per_weight_items();
         self._best_relaxation =
             Self::_calc_best_relaxation_fractionals(&sorted_items, &problem, 0, 0, 0);
@@ -92,29 +92,12 @@ impl KnapsackSolver for BranchAndBoundSolver {
         while let Some(node) = branch_and_bound_tree.pop() {
             self._report_status_and_prune_tree(&mut branch_and_bound_tree, &best_node, &node);
 
-            if start_time.elapsed().as_secs() >= 120 {
-                self._early_stopping_activated = true;
-                if cfg!(debug_assertions) {
-                    println!(
-                        "Early stopping activated, good enough solution found or time exceeded."
-                    );
-                }
-                break;
-            }
-
             if node.obj > best_node.obj {
                 //Only clone if needed
                 best_node = node.clone();
             }
 
-            if node.selected.len() == problem.n_items {
-                continue;
-            } //terminal node, no need to branch
-            if node.best_relaxation <= best_node.obj {
-                continue;
-            } //no need to explore this node, because the branch will never lead to a better solution
-
-            self._nodes_explored += 1;
+            self._should_stop(&problem, &best_node, &node);
 
             match self._create_new_node(&sorted_items, &problem, &node, true) {
                 None => continue,
@@ -130,17 +113,7 @@ impl KnapsackSolver for BranchAndBoundSolver {
             }
         }
 
-        if (cfg!(debug_assertions)) {
-            let elapsed = start_time.elapsed().as_secs();
-            println!("Program ran in {:?} seconds", elapsed);
-            println!(
-                "Best score: {}, optimality perc: {}%, weight of knapsack: {}, capacity: {}",
-                best_node.obj,
-                self._optimality_perc * 100f32,
-                best_node.current_weight,
-                problem.capacity
-            )
-        }
+        self._report_final_status(&problem, &best_node);
 
         //Right pad with 0s in case the best solution is not a terminal node
         best_node.selected.resize(problem.n_items, 0);
@@ -226,8 +199,15 @@ impl BranchAndBoundSolver {
         })
     }
 
-    fn _report_status_and_prune_tree(&mut self, branch_and_bound_tree: &mut BinaryHeap<BranchAndBoundNode>, best_node: &BranchAndBoundNode, current_node: &BranchAndBoundNode) {
-        self._optimality_perc = (best_node.obj as f32 / current_node.best_relaxation as f32).min(1f32);
+    fn _report_status_and_prune_tree(
+        &mut self,
+        branch_and_bound_tree: &mut BinaryHeap<BranchAndBoundNode>,
+        best_node: &BranchAndBoundNode,
+        current_node: &BranchAndBoundNode,
+    ) {
+        self._nodes_explored += 1;
+        self._optimality_perc =
+            (best_node.obj as f32 / current_node.best_relaxation as f32).min(1f32);
         if best_node.obj > 0 && self._nodes_explored % 100000 == 0 {
             branch_and_bound_tree.retain(|node| current_node.best_relaxation >= best_node.obj);
             if cfg!(debug_assertions) {
@@ -242,4 +222,51 @@ impl BranchAndBoundSolver {
             }
         }
     }
+
+    fn _should_stop(
+        &mut self,
+        problem: &KnapsackProblem,
+        best_node: &BranchAndBoundNode,
+        current_node: &BranchAndBoundNode,
+    ) -> NodeExplorationState {
+        if self._start_time.elapsed().as_secs() >= 120 {
+            self._early_stopping_activated = true;
+            if cfg!(debug_assertions) {
+                println!("Early stopping activated, good enough solution found or time exceeded.");
+            }
+            return NodeExplorationState::TimeLimit;
+        }
+        if current_node.selected.len() == problem.n_items {
+            return NodeExplorationState::TerminalNode;
+        } //terminal node, no need to branch
+        if current_node.best_relaxation <= best_node.obj {
+            return NodeExplorationState::NoBetterSolution;
+        } //no need to explore this node, because the branch will never lead to a better solution
+
+        KeepExploring
+    }
+
+    fn _report_final_status(
+        &self,
+        problem: &KnapsackProblem,
+        best_node: &BranchAndBoundNode,
+    ) {
+        if (cfg!(debug_assertions)) {
+            let elapsed = self._start_time.elapsed().as_secs();
+            println!("Program ran in {:?} seconds", elapsed);
+            println!(
+                "Best score: {}, optimality perc: {}%, weight of knapsack: {}, capacity: {}",
+                best_node.obj,
+                self._optimality_perc * 100f32,
+                best_node.current_weight,
+                problem.capacity
+            )
+        }
+    }
+}
+enum NodeExplorationState {
+    TimeLimit,
+    TerminalNode,
+    NoBetterSolution,
+    KeepExploring,
 }
