@@ -90,27 +90,7 @@ impl KnapsackSolver for BranchAndBoundSolver {
 
         self._nodes_explored = 0;
         while let Some(node) = branch_and_bound_tree.pop() {
-            // TODO: Best relaxation only works with Priority Queue
-            // For stack we need to keep track when that relaxation has already been explored
-            // which is not trivial
-            self._optimality_perc = (best_node.obj as f32 / node.best_relaxation as f32).min(1f32);
-
-            if best_node.obj > 0 && self._nodes_explored % 100000 == 0 {
-                branch_and_bound_tree = branch_and_bound_tree
-                    .drain()
-                    .filter(|node| node.best_relaxation >= best_node.obj)
-                    .collect();
-                if cfg!(debug_assertions) {
-                    println!("Pruned the priority queue/stack to reduce memory consumption");
-                    println!(
-                        "Nodes explored: {}, Best value: {}, best upper bound: {}, optimality bound % {}",
-                        self._nodes_explored,
-                        best_node.obj,
-                        node.best_relaxation,
-                        self._optimality_perc
-                    )
-                }
-            }
+            self._report_status_and_prune_tree(&mut branch_and_bound_tree, &best_node, &node);
 
             if start_time.elapsed().as_secs() >= 120 {
                 self._early_stopping_activated = true;
@@ -244,5 +224,22 @@ impl BranchAndBoundSolver {
                 current_node.selected.len() + 1,
             ),
         })
+    }
+
+    fn _report_status_and_prune_tree(&mut self, branch_and_bound_tree: &mut BinaryHeap<BranchAndBoundNode>, best_node: &BranchAndBoundNode, current_node: &BranchAndBoundNode) {
+        self._optimality_perc = (best_node.obj as f32 / current_node.best_relaxation as f32).min(1f32);
+        if best_node.obj > 0 && self._nodes_explored % 100000 == 0 {
+            branch_and_bound_tree.retain(|node| current_node.best_relaxation >= best_node.obj);
+            if cfg!(debug_assertions) {
+                println!("Pruned the priority queue/stack to reduce memory consumption");
+                println!(
+                    "Nodes explored: {}, Best value: {}, best upper bound: {}, optimality bound % {}",
+                    self._nodes_explored,
+                    best_node.obj,
+                    current_node.best_relaxation,
+                    self._optimality_perc
+                )
+            }
+        }
     }
 }
