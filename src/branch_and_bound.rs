@@ -134,54 +134,20 @@ impl KnapsackSolver for BranchAndBoundSolver {
                 continue;
             } //no need to explore this node, because the branch will never lead to a better solution
 
-            //TODO: This is not really 'nodes explored', improve this
             self._nodes_explored += 1;
 
-            //We do right traversal, so we only need fewer copies
-            let new_weight_left_node = node.current_weight
-                + problem
-                    .treasure_items
-                    .get(node.selected.len())
-                    .unwrap()
-                    .weight;
-            //Only add left node if the capacity is not yet exceeded
-            if new_weight_left_node <= problem.capacity {
-                let mut selected_items_left_node = node.selected.clone();
-                selected_items_left_node.push(1);
-                let new_obj_left_node = node.obj
-                    + problem
-                        .treasure_items
-                        .get(node.selected.len())
-                        .unwrap()
-                        .value;
-                branch_and_bound_tree.push(BranchAndBoundNode {
-                    selected: selected_items_left_node,
-                    obj: new_obj_left_node,
-                    current_weight: new_weight_left_node,
-                    best_relaxation: Self::_calc_best_relaxation_fractionals(
-                        &sorted_items,
-                        &problem,
-                        new_obj_left_node,
-                        new_weight_left_node,
-                        node.selected.len() + 1,
-                    ),
-                });
+            match self._create_new_node(&sorted_items, &problem, &node, true) {
+                None => continue,
+                Some(node) => {
+                    branch_and_bound_tree.push(node);
+                }
             }
-            let mut selected_items_right_node = node.selected; //Move, to avoid expensive copy of vector<u8>
-            selected_items_right_node.push(0);
-            let items_visited: usize = selected_items_right_node.len();
-            branch_and_bound_tree.push(BranchAndBoundNode {
-                selected: selected_items_right_node,
-                obj: node.obj,
-                current_weight: node.current_weight,
-                best_relaxation: Self::_calc_best_relaxation_fractionals(
-                    &sorted_items,
-                    &problem,
-                    node.obj,
-                    node.current_weight,
-                    items_visited,
-                ),
-            });
+            match self._create_new_node(&sorted_items, &problem, &node, false) {
+                None => continue,
+                Some(node) => {
+                    branch_and_bound_tree.push(node);
+                }
+            }
         }
 
         if (cfg!(debug_assertions)) {
@@ -207,19 +173,6 @@ impl KnapsackSolver for BranchAndBoundSolver {
 }
 
 impl BranchAndBoundSolver {
-    fn _calc_best_relaxation_unlimited_capacity(
-        problem: &KnapsackProblem,
-        remaining_items: &[usize],
-    ) -> usize {
-        //These bounds are not very tight, therefore this can take a substantial amount of time.
-        let mut best_relaxation: usize = 0;
-        for item in remaining_items {
-            best_relaxation += problem.treasure_items.get(*item).unwrap().value;
-        }
-
-        best_relaxation
-    }
-
     fn _calc_best_relaxation_fractionals(
         sorted_items: &Vec<(usize, KnapsackItem)>,
         problem: &KnapsackProblem,
@@ -227,13 +180,7 @@ impl BranchAndBoundSolver {
         current_weight: usize,
         items_visited: usize,
     ) -> usize {
-        // TODO: The subtle difference between sorting every decision node versus only once at the start
-        // is that we must keep track which items are already selected, and only consider the remaining items
-        // for updating the relaxation.
-        // The example in the course where the first node gives partial relaxation 90 in my buggy solution
-        // versus 92 in the example shows why things may go wrong. The real relaxation is 92,
-        // but we think it is 90. So if we had found a solution with value 91, this branch would never be explored
-        // even though the best solution can be 92.
+        //
         let mut best_relaxation = current_value;
         let mut remaining_capacity = problem.capacity - current_weight;
 
@@ -255,5 +202,47 @@ impl BranchAndBoundSolver {
         }
 
         best_relaxation
+    }
+
+    fn _create_new_node(
+        &self,
+        sorted_items: &Vec<(usize, KnapsackItem)>,
+        problem: &KnapsackProblem,
+        current_node: &BranchAndBoundNode,
+        include_next: bool,
+    ) -> Option<BranchAndBoundNode> {
+        let mut new_weight = current_node.current_weight;
+        let mut new_obj = current_node.obj;
+        let mut selected_items = current_node.selected.clone();
+        selected_items.push(include_next as u8);
+
+        if include_next {
+            new_obj += problem
+                .treasure_items
+                .get(current_node.selected.len())
+                .unwrap()
+                .value;
+            new_weight += problem
+                .treasure_items
+                .get(current_node.selected.len())
+                .unwrap()
+                .weight;
+        }
+
+        if new_weight > problem.capacity {
+            return None;
+        }
+        Some(BranchAndBoundNode {
+            selected: selected_items,
+            obj: new_obj,
+            current_weight: new_weight,
+            best_relaxation: Self::_calc_best_relaxation_fractionals(
+                &sorted_items,
+                &problem,
+                new_obj,
+                new_weight,
+                current_node.selected.len() + 1,
+            ),
+        })
     }
 }
